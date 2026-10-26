@@ -1,0 +1,12 @@
+{
+  "Infinite": true,
+  "RemovalBehavior": "Infinite",
+  "ApplicationEffects": {
+    "HorizontalSpeedMultiplier": 0.2,
+    "MovementEffects": {
+      "DisableSprint": true,
+      "DisableCrouch": true
+    }
+  },
+  "OverlapBehavior": "Ignore"
+}

@@ -1,0 +1,48 @@
+{
+  "TranslationProperties": {
+    "Name": "server.items.Parcel.name",
+    "Description": "server.items.Parcel.description"
+  },
+  "PlayerAnimationsId": "Block",
+  "Icon": "Icons/ItemsGenerated/Furniture_Christmas_Chest_Small_Green.png",
+  "IconProperties": {
+    "Rotation": [22.5, 45, 22.5],
+    "Scale": 0.55,
+    "Translation": [0, -15]
+  },
+  "BlockType": {
+    "BlockParticleSetId": "Wood",
+    "BlockSoundSetId": "Cloth",
+    "PhysicalMaterialId": "Wool",
+    "CustomModel": "Blocks/Decorative_Sets/Christmas/Chest_Small.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Decorative_Sets/Christmas/Chest_Small_Textures/Green.png",
+        "Weight": 1
+      }
+    ],
+    "DrawType": "Model",
+    "Flags": {},
+    "Material": "Solid",
+    "Opacity": "Transparent",
+    "ParticleColor": "#63412c",
+    "Supporting": {
+      "Up": [{"FaceType": "Full"}]
+    },
+    "Support": {
+      "Down": [{"FaceType": "Full"}]
+    },
+    "VariantRotation": "NESW",
+    "TextureComputedColor": "#537721"
+  },
+  "CarryInteractions": {
+    "Use": "Parcel_Delivery_NPC",
+    "Secondary": "Parcel_Dash",
+    "Ability2": "Parcel_Throw"
+  },
+  "Tags": {
+    "Type": ["Parcel"]
+  },
+  "ItemSoundSetId": "ISS_Items_Cloth",
+  "MaxStack": 1
+}

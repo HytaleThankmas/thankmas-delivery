@@ -1,0 +1,32 @@
+{
+  "Type": "EffectCondition",
+  "EntityEffectIds": [
+    "Parcel_Effect_Dash"
+  ],
+  "Match": "All",
+  "Next": {
+    "Type": "Serial",
+    "Interactions": [
+      {
+        "Type": "ApplyEffect",
+        "EffectId": "Dagger_Dash"
+      },
+      {
+        "Type": "MovementCondition",
+        "Failed": "Daggers_Dash_Forward",
+        "Forward": "Daggers_Dash_Forward",
+        "Back": "Daggers_Dash_Backward",
+        "Left": "Daggers_Dash_Left",
+        "Right": "Daggers_Dash_Right",
+        "ForwardLeft": "Daggers_Dash_Forward_Left",
+        "ForwardRight": "Daggers_Dash_Forward_Right",
+        "BackLeft": "Daggers_Dash_Backward_Left",
+        "BackRight": "Daggers_Dash_Backward_Right"
+      }
+    ]
+  },
+  "Failed": {
+    "Type": "Simple",
+    "RunTime": 0
+  }
+}

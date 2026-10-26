@@ -1,0 +1,15 @@
+{
+  "Model": "Parcel_Projectile",
+  "UseModelScale": true,
+  "Physics": {
+    "Type": "Standard",
+    "Gravity": 20,
+    "TerminalVelocityAir": 50,
+    "TerminalVelocityWater": 15,
+    "RotationMode": "VelocityDamped",
+    "SticksVertically": true
+  },
+  "LaunchForce": 15,
+  "SpawnOffset": { "X": 0.2, "Y": 0.2, "Z": 0.0 },
+  "Interactions": { "Use": "Parcel_Pickup" }
+}

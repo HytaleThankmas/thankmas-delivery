@@ -1,0 +1,64 @@
+{
+  "FogDistance": [
+    -2.0,
+    6.0
+  ],
+  "FogDensities": [
+    {
+      "Hour": 0,
+      "Value": 2.0
+    }
+  ],
+  "FogColors": [
+    {
+      "Hour": 0,
+      "Color": "#000000"
+    }
+  ],
+  "SkyTopColors": [
+    {
+      "Hour": 0,
+      "Color": "#000000ff"
+    }
+  ],
+  "SkyBottomColors": [
+    {
+      "Hour": 0,
+      "Color": "#000000ff"
+    }
+  ],
+  "SkySunsetColors": [
+    {
+      "Hour": 0,
+      "Color": "#000000ff"
+    }
+  ],
+  "SunColors": [
+    {
+      "Hour": 0,
+      "Color": "#000000"
+    }
+  ],
+  "SunGlowColors": [
+    {
+      "Hour": 0,
+      "Color": "#000000ff"
+    }
+  ],
+  "MoonColors": [
+    {
+      "Hour": 0,
+      "Color": "#000000ff"
+    }
+  ],
+  "MoonGlowColors": [
+    {
+      "Hour": 0,
+      "Color": "#000000ff"
+    }
+  ],
+  "FogOptions": {
+    "IgnoreFogLimits": true,
+    "EffectiveViewDistanceMultiplier": 0.0
+  }
+}

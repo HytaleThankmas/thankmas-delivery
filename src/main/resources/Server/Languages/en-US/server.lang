@@ -1,0 +1,6 @@
+items.Parcel.name = Parcel
+items.Parcel.description = Your assigned Thankmas present. Carry it to its recipient. Effects stay active after throwing. Leaving the game cancels your delivery.
+npcRoles.Parcel_Dispatcher.name = Thankmas Dispatcher
+npcRoles.Parcel_Recipient.name = Thankmas Resident
+interactionHints.Parcel_Dispatcher = Talk about presents
+interactionHints.Parcel_Recipient = Deliver present
