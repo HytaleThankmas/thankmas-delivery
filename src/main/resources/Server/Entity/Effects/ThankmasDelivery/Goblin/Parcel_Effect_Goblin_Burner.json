@@ -1,0 +1,6 @@
+{
+  "Infinite": true,
+  "RemovalBehavior": "Infinite",
+  "ModelChange": "Goblin_Burner",
+  "OverlapBehavior": "Ignore"
+}

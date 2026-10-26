@@ -1,0 +1,16 @@
+{
+  "Cooldown": { "Cooldown": 1.2 },
+  "ClickQueuingTimeout": 0,
+  "RequireNewClick": true,
+  "Interactions": [
+    {
+      "Type": "Simple",
+      "Effects": {
+        "ItemPlayerAnimationsId": "Block",
+        "ItemAnimationId": "HeavyThrow"
+      },
+      "RunTime": 0.633
+    },
+    { "Type": "thankmasDeliveryThrow" }
+  ]
+}

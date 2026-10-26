@@ -1,0 +1,8 @@
+{
+  "Infinite": true,
+  "RemovalBehavior": "Infinite",
+  "ApplicationEffects": {
+    "HorizontalSpeedMultiplier": 1.5
+  },
+  "OverlapBehavior": "Ignore"
+}

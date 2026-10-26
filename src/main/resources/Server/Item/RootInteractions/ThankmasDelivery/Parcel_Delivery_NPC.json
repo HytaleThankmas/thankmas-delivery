@@ -1,0 +1,4 @@
+{
+  "RequireNewClick": true,
+  "Interactions": [ { "Type": "thankmasDeliveryNpcUse" } ]
+}

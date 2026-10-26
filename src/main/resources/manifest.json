@@ -1,0 +1,19 @@
+{
+  "Group": "acorn",
+  "Name": "Thankmas Delivery",
+  "Version": "1.0.0",
+  "ServerVersion": ">=0.7.0 <0.8.0",
+  "Description": "Thankmas Delivery: NPC present deliveries with private chat dialogue",
+  "Authors": [{"Name": "Acorn"}],
+  "Main": "acorn.thankmasdelivery.ThankmasDeliveryPlugin",
+  "LoadOrder": "POSTWORLD",
+  "Dependencies": {
+    "Hytale:EntityModule": "*",
+    "Hytale:InteractionModule": "*",
+    "Hytale:ProjectileModule": "*",
+    "Hytale:Weather": "*",
+    "Hytale:NPC": "*"
+  },
+  "OptionalDependencies": {},
+  "IncludesAssetPack": true
+}

@@ -1,0 +1,10 @@
+{
+  "Infinite": true,
+  "RemovalBehavior": "Infinite",
+  "ApplicationEffects": {
+    "MouseSensitivityAdjustmentTarget": 0.1,
+    "MouseSensitivityAdjustmentDuration": 0.1
+  },
+  "OverlapBehavior": "Ignore",
+  "Debuff": true
+}

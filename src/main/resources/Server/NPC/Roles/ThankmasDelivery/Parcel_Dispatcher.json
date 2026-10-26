@@ -1,0 +1,39 @@
+{
+  "Type": "Generic",
+  "StartState": "Idle",
+  "Appearance": "Kweebec_Rootling",
+  "MaxHealth": 100,
+  "Invulnerable": true,
+  "NameTranslationKey": "server.npcRoles.Parcel_Dispatcher.name",
+  "MotionControllerList": [
+    { "Type": "Walk", "MaxWalkSpeed": 1, "Gravity": 10, "MaxFallSpeed": 15, "MaxRotationSpeed": 360, "Acceleration": 10 }
+  ],
+  "Instructions": [
+    { "Sensor": { "Type": "State", "State": "Idle" }, "BodyMotion": { "Type": "Nothing" } }
+  ],
+  "InteractionInstruction": {
+    "Instructions": [
+      {
+        "Sensor": { "Type": "Not", "Sensor": { "Type": "CanInteract", "ViewSector": 360 } },
+        "Actions": [ { "Type": "SetInteractable", "Interactable": false } ]
+      },
+      {
+        "Sensor": { "Type": "Any" },
+        "Actions": [ { "Type": "SetInteractable", "Interactable": true, "Hint": "server.interactionHints.Parcel_Dispatcher" } ],
+        "Continue": true
+      },
+      {
+        "Sensor": { "Type": "HasInteracted" },
+        "Actions": [
+          { "Type": "LockOnInteractionTarget" },
+          { "Type": "thankmasDeliveryNpcInteract" },
+          { "Type": "ReleaseTarget" }
+        ]
+      }
+    ]
+  },
+  "DefaultNPCAttitude": "Ignore",
+  "DefaultPlayerAttitude": "Neutral",
+  "DisableDamageGroups": [ "Self" ],
+  "CombatConfig": { "EntityEffects": [ "Immunity_Environmental" ] }
+}
