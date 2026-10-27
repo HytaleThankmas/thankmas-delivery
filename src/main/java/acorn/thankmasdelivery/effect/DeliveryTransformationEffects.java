@@ -2,12 +2,13 @@ package acorn.thankmasdelivery.effect;
 
 import acorn.thankmasdelivery.component.DeliveryAssignmentState;
 
+import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.component.ComponentAccessor;
-import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.RemovalBehavior;
 import com.hypixel.hytale.server.core.asset.type.model.config.Model;
+import com.hypixel.hytale.server.core.cosmetics.CosmeticsModule;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.BoundingBox;
 import com.hypixel.hytale.server.core.modules.entity.component.EntityScaleComponent;
@@ -30,7 +31,8 @@ public final class DeliveryTransformationEffects {
         Model model = component.getModel();
         state.previousModel = model.toReference();
         EntityScaleComponent scale = accessor.getComponent(ref, EntityScaleComponent.getComponentType());
-        state.previousScale = scale == null ? state.previousModel.getScale() : scale.getScale();
+        float savedScale = scale == null ? state.previousModel.getScale() : scale.getScale();
+        state.previousScale = (savedScale > 0 && Float.isFinite(savedScale)) ? savedScale : 1f;
     }
 
     /** safely ends a transformation effect  */
@@ -38,75 +40,100 @@ public final class DeliveryTransformationEffects {
         ComponentAccessor<EntityStore> accessor) {
         EntityEffect entityEffect = EntityEffect.getAssetMap().getAsset(effectId);
         EffectControllerComponent controller = accessor.getComponent(ref, EffectControllerComponent.getComponentType());
-        ComponentType<EntityStore, ModelComponent> modelType = ModelComponent.getComponentType();
-        ComponentType<EntityStore, EntityScaleComponent> scaleType = EntityScaleComponent.getComponentType();
-        ModelComponent currentModel = accessor.getComponent(ref, modelType);
-        EntityScaleComponent currentScale = accessor.getComponent(ref, scaleType);
-        String expectedModel = state.transformationModelId();
-        boolean foreignModel = expectedModel != null && currentModel != null && currentModel.getModel() != null
-            && !expectedModel.equals(currentModel.getModel().getModelAssetId())
-            && state.previousModel != null
-            && !state.previousModel.getModelAssetId().equals(currentModel.getModel().getModelAssetId());
-        Model preservedModel = foreignModel ? currentModel.getModel() : null;
-        Float preservedScale = currentScale != null && state.ownedTransformationScale != null
-            && Float.compare(currentScale.getScale(), state.ownedTransformationScale) != 0
-            && (!state.formSizeApplied || Float.compare(currentScale.getScale(), state.formBaseScale) != 0)
-            ? currentScale.getScale() : null;
 
+        //
         if (entityEffect != null && controller != null) {
-            controller.removeEffect(ref, EntityEffect.getAssetMap().getIndex(effectId), RemovalBehavior.COMPLETE, accessor);
+            int effectIndex = EntityEffect.getAssetMap().getIndex(effectId);
+            if (effectIndex != AssetMapWithIndexes.NOT_FOUND) {
+                controller.removeEffect(ref, effectIndex, RemovalBehavior.COMPLETE, accessor);
+            }
         }
         restore(ref, state, accessor);
-        if (preservedModel != null) {
-            accessor.putComponent(ref, modelType, new ModelComponent(preservedModel));
-        }
-        if (preservedScale != null) {
-            accessor.putComponent(ref, scaleType, new EntityScaleComponent(preservedScale));
-        }
-        ModelComponent model = accessor.getComponent(ref, modelType);
-        EntityScaleComponent scale = accessor.getComponent(ref, scaleType);
-        BoundingBox bounds = accessor.getComponent(ref, BoundingBox.getComponentType());
-        if (bounds != null && model != null && model.getModel() != null && scale != null) {
-            bounds.setScale(scale.getScale() / model.getModel().getScale());
-        }
     }
 
+
+    /**
+     * Restores an entity's model, scale, and bounding box
+     * @param ref      the reference to the target entity within the entity store
+     * @param state    the delivery assignment state containing snapshot data to restore and clear
+     * @param accessor the component accessor used to retrieve, put, and modify entity components
+     */
     private static void restore(Ref<EntityStore> ref, DeliveryAssignmentState state, ComponentAccessor<EntityStore> accessor) {
-        ModelComponent current = accessor.getComponent(ref, ModelComponent.getComponentType());
-        if (current == null || current.getModel() == null) {
-            return;
-        }
-        if (state.previousModel != null && isTransformation(current.getModel().getModelAssetId())) {
+        float restoredScale = (state.previousScale > 0 && Float.isFinite(state.previousScale)) ? state.previousScale : 1f;
+        PlayerSkinComponent skin = accessor.getComponent(ref, PlayerSkinComponent.getComponentType());
+
+        if (skin != null) {
+            // restore model and notify wardrobe
+            boolean restoredPrevious = false;
+            if (state.previousModel != null) {
+                try {
+                    Model model = state.previousModel.toModel();
+                    if (model != null) {
+                        accessor.putComponent(ref, ModelComponent.getComponentType(), new ModelComponent(model));
+                        restoredPrevious = true;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            if (!restoredPrevious) {
+                try {
+                    Model playerModel = CosmeticsModule.get().createModel(skin.getPlayerSkin(), restoredScale);
+                    if (playerModel != null) {
+                        accessor.putComponent(ref, ModelComponent.getComponentType(), new ModelComponent(playerModel));
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            skin.setNetworkOutdated();
+            notifyWardrobe(ref, accessor);
+        } else if (state.previousModel != null) {
+            // Non-player entities: restore from saved model reference
             Model model = state.previousModel.toModel();
             if (model != null) {
                 accessor.putComponent(ref, ModelComponent.getComponentType(), new ModelComponent(model));
             }
         }
-        if (state.previousModel != null) {
-            EntityScaleComponent scale = accessor.getComponent(ref, EntityScaleComponent.getComponentType());
-            boolean ownsScale = scale == null || state.ownedTransformationScale == null
-                || Float.compare(scale.getScale(), state.ownedTransformationScale) == 0
-                || (state.formBaseScale > 0 && Float.compare(scale.getScale(), state.formBaseScale) == 0);
-            if (ownsScale && scale == null) {
-                accessor.putComponent(ref, EntityScaleComponent.getComponentType(), new EntityScaleComponent(state.previousScale));
-            } else if (ownsScale) {
-                scale.setScale(state.previousScale);
-            }
-            ModelComponent model = accessor.getComponent(ref, ModelComponent.getComponentType());
-            BoundingBox bounds = accessor.getComponent(ref, BoundingBox.getComponentType());
-            if (bounds != null && model != null && model.getModel() != null) {
-                bounds.setScale((ownsScale ? state.previousScale : scale.getScale()) / model.getModel().getScale());
-            }
+
+        // Restore entity scale
+        EntityScaleComponent currentScale = accessor.getComponent(ref, EntityScaleComponent.getComponentType());
+        if (currentScale != null) {
+            currentScale.setScale(restoredScale);
+        } else {
+            accessor.putComponent(ref, EntityScaleComponent.getComponentType(), new EntityScaleComponent(restoredScale));
         }
-        PlayerSkinComponent skin = accessor.getComponent(ref, PlayerSkinComponent.getComponentType());
-        if (skin != null) {
-            skin.setNetworkOutdated();
+
+        // Restore bounding box scale
+        BoundingBox bounds = accessor.getComponent(ref, BoundingBox.getComponentType());
+        if (bounds != null) {
+            bounds.setScale(1f);
         }
+
         state.previousModel = null;
         state.ownedTransformationScale = null;
     }
 
-    private static boolean isTransformation(String id) {
-        return DeliveryForms.MODEL_IDS.contains(id);
+
+    /**
+     * Notifies the player wardrobe component to rebuild its state for a player
+     *
+     * @param ref      the target entity
+     * @param accessor the component accessor
+     */
+    @SuppressWarnings("unchecked")
+    private static void notifyWardrobe(Ref<EntityStore> ref, ComponentAccessor<EntityStore> accessor) {
+        try {
+            Class<?> compClass = Class.forName("dev.hardaway.wardrobe.impl.player.PlayerWardrobeComponent");
+            java.lang.reflect.Method getTypeMethod = compClass.getMethod("getComponentType");
+            com.hypixel.hytale.component.ComponentType<EntityStore, ?> compType =
+                (com.hypixel.hytale.component.ComponentType<EntityStore, ?>) getTypeMethod.invoke(null);
+            if (compType != null) {
+                Object wardrobeComp = accessor.getComponent(ref, compType);
+                if (wardrobeComp != null) {
+                    java.lang.reflect.Method rebuildMethod = compClass.getMethod("rebuild");
+                    rebuildMethod.invoke(wardrobeComp);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
     }
 }

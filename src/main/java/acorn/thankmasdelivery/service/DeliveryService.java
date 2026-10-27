@@ -1,13 +1,17 @@
 package acorn.thankmasdelivery.service;
 
 import acorn.thankmasdelivery.asset.DeliveryAssets;
+import javax.annotation.Nullable;
 import acorn.thankmasdelivery.component.DeliveryAssignmentState;
 import acorn.thankmasdelivery.component.DeliveryNpc;
 import acorn.thankmasdelivery.component.DeliveryOwnership;
 import acorn.thankmasdelivery.component.ThrownPresent;
 import acorn.thankmasdelivery.model.DeliveryIdentity;
+import acorn.thankmasdelivery.model.DeliveryOfferSummary;
 import acorn.thankmasdelivery.model.DeliveryOption;
 import acorn.thankmasdelivery.model.DeliverySession;
+import acorn.thankmasdelivery.page.ActiveDeliveryPage;
+import acorn.thankmasdelivery.page.DeliveryPage;
 import acorn.thankmasdelivery.npc.DeliveryCelebrationEmotes;
 import acorn.thankmasdelivery.npc.DeliveryDialogue;
 import acorn.thankmasdelivery.npc.DeliveryDialogue.Outcome;
@@ -32,6 +36,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.cosmetics.CosmeticsModule;
 import com.hypixel.hytale.server.core.cosmetics.EmoteAsset;
 import com.hypixel.hytale.server.core.entity.AnimationUtils;
+import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entity.tracker.NetworkId;
@@ -216,7 +221,16 @@ public final class DeliveryService {
             conversations.put(player.getUuid(), new DispatcherConversation(npc, offers == null ? null : offers.token()));
             tell(player, marker.name() + ": " + greeting);
             if (offers != null) {
-                player.sendMessage(DeliveryMessages.withPrefix(DeliveryMessages.offerSummaries(offers.summaries())));
+                // Open UI
+                Ref<EntityStore> ref = player.getReference();
+                if (ref != null && ref.isValid()) {
+                    Store<EntityStore> playerStore = ref.getStore();
+                    Player playerEntity = playerStore.getComponent(ref, Player.getComponentType());
+                    if (playerEntity != null) {
+                        DeliveryPage page = new DeliveryPage(player, this, offers.summaries());
+                        playerEntity.getPageManager().openCustomPage(ref, playerStore, page);
+                    }
+                }
             } else {
                 tell(player, profile.active() != null ? deliver(player) : unavailableReason(world));
             }
@@ -229,6 +243,54 @@ public final class DeliveryService {
         }
         DeliveryNpc marker = npc.getStore().getComponent(npc, npcType);
         return marker != null && marker.dispatcher();
+    }
+
+    /**
+     * Returns existing offer summaries for the player, or generates choices matching the slot ranges.
+     *
+     * @param player the player reference to look up offers for
+     * @return an unmodifiable list of delivery offer summaries
+     */
+    public List<DeliveryOfferSummary> getOrCreateOfferSummaries(PlayerRef player) {
+        try {
+            DeliveryStore.Offers offers = deliveries.offers(player.getUuid(), player.getUsername());
+            if (offers != null) {
+                offers.summaries();
+                if (!offers.summaries().isEmpty()) {
+                    return offers.summaries();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        List<DeliveryOption> options = DeliveryOption.randomChoices(ThreadLocalRandom.current());
+        List<DeliveryOfferSummary> summaries = new java.util.ArrayList<>(options.size());
+        for (int i = 0; i < options.size(); i++) {
+            summaries.add(DeliveryOfferSummary.of(i + 1, options.get(i)));
+        }
+        return List.copyOf(summaries);
+    }
+
+    public void openActiveDeliveryPage(Store<EntityStore> store, Ref<EntityStore> ref, PlayerRef player) {
+        openActiveDeliveryPage(store, ref, player, null);
+    }
+
+
+    public void openActiveDeliveryPage(Store<EntityStore> store, Ref<EntityStore> ref, PlayerRef player, @Nullable String recipientId) {
+        Player playerEntity = store.getComponent(ref, Player.getComponentType());
+        if (playerEntity == null) {
+            return;
+        }
+        DeliveryStore.Profile profile = deliveries.profile(player.getUuid(), player.getUsername());
+        DeliveryStore.Run activeRun = profile != null ? profile.active() : null;
+        DeliveryStore.Destination destination = null;
+        if (recipientId != null) {
+            destination = deliveries.recipient(recipientId);
+        } else if (activeRun != null) {
+            destination = activeRun.recipient();
+        }
+        ActiveDeliveryPage page = new ActiveDeliveryPage(player, this, activeRun, destination);
+        playerEntity.getPageManager().openCustomPage(ref, store, page);
     }
 
     /** Shows parcel choices while the player is near the dispatcher. */
