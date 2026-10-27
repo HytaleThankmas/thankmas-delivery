@@ -1,0 +1,15 @@
+$C = "../Common.ui";
+
+$C.@PageOverlay {
+}
+
+Group #GiftGridContainer {
+  Anchor: (Full: 0);
+  LayoutMode: CenterMiddle;
+
+  Group #GiftGrid {
+    LayoutMode: Left;
+  }
+}
+
+$C.@BackButton {}

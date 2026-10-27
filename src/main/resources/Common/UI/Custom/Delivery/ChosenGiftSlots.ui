@@ -1,0 +1,67 @@
+$C = "../Common.ui";
+
+$C.@DecoratedContainer {
+  Anchor: (Width: 320, Height: 580, Left: 12, Right: 12);
+  LayoutMode: Full;
+  Background: #16212f;
+
+  Group #TopBar {
+    LayoutMode: Middle;
+
+    Label #ParcelTitle {
+      Text: "Parcel 1";
+      Anchor: (Width: 240, Height: 28, Top: 8);
+      FlexWeight: 1;
+      Style: (FontSize: 20, TextColor: $C.@ColorDefault, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+      MaskTexturePath: $C.@TextHighlightGradientMask;
+    }
+  }
+
+  Group #Main {
+    LayoutMode: Top;
+    Anchor: (Top: 42);
+
+    Group #Group2 {
+      LayoutMode: MiddleCenter;
+
+      Label #PointsTitle {
+        Text: "Points: 0";
+        Anchor: (Width: 220, Height: 28, Bottom: 6);
+        Style: (FontSize: 18, TextColor: $C.@ColorGoldHighlight, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+      }
+
+      Group #ParcelImageGroup {
+        Anchor: (Width: 128, Height: 128, Bottom: 10);
+        LayoutMode: MiddleCenter;
+
+        ItemSlot #ParcelImage {
+          Anchor: (Width: 128, Height: 128);
+          ShowQualityBackground: false;
+        }
+      }
+
+      Group #EffectsContainer {
+        LayoutMode: Top;
+        Anchor: (Width: 280, Left:10, Right:10);
+
+        Label #PositiveText {
+          Text: "Positive: ";
+          Anchor: (Width: 280, Top: 8, Bottom: 8, Left:10, Right:10);
+          Style: (FontSize: 18, TextColor: #83E79E, Wrap: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+        }
+
+        Label #NeutralText {
+          Text: "Neutral: ";
+          Anchor: (Width: 280, Top: 8, Bottom: 8, Left:10, Right:10);
+          Style: (FontSize: 18, TextColor: #FFD469, Wrap: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+        }
+
+        Label #NegativeText {
+          Text: "Negative: ";
+          Anchor: (Width: 280, Top: 8, Bottom: 8, Left:10, Right:10);
+          Style: (FontSize: 18, TextColor: #FF9D93, Wrap: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+        }
+      }
+    }
+  }
+}

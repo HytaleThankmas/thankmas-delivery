@@ -51,6 +51,11 @@ final class DeliveryRecipientRegistry {
         recipientRetirements.forEach(this::saveRetirement);
     }
 
+    Ref<EntityStore> getLiveRef(String id) {
+        LiveRecipient live = liveRecipients.get(id);
+        return live != null && live.ref().isValid() ? live.ref() : null;
+    }
+
     Set<String> eligible(World world) {
         Set<String> ids = new HashSet<String>();
         // Unloaded recipients can never receive a new parcel, so visit only live entities.
@@ -122,6 +127,11 @@ final class DeliveryRecipientRegistry {
         LiveRecipient live = liveRecipients.get(marker.id());
         if (live == null || !live.ref().equals(ref)) {
             liveRecipients.put(marker.id(), new LiveRecipient(ref, uuid.getUuid(), world));
+        }
+        String liveAppearance = acorn.thankmasdelivery.npc.DeliveryNpcAppearanceHelper.extractAppearanceFromRef(ref, store);
+        if (liveAppearance != null) {
+            acorn.thankmasdelivery.npc.DeliveryNpcAppearanceHelper.cacheAppearance(marker.id(), liveAppearance);
+            acorn.thankmasdelivery.npc.DeliveryNpcAppearanceHelper.cacheAppearance(uuid.getUuid(), liveAppearance);
         }
         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
         if (transform == null || (world.getWorldConfig().getUuid().equals(destination.worldId())

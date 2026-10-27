@@ -1,0 +1,117 @@
+$C = "../Common.ui";
+
+$C.@PageOverlay {
+}
+
+Group #ActiveDeliveryContainer {
+  Anchor: (Full: 0);
+  LayoutMode: CenterMiddle;
+
+  Group #DeliveryContent {
+    LayoutMode: Left;
+
+    Group #ChosenGiftSlotWrapper {
+      Anchor: (Width: 324, Height: 580);
+    }
+
+    Group #RecipientWrapper {
+      Anchor: (Width: 440, Height: 580, Left: 24);
+      LayoutMode: Top;
+
+      $C.@DecoratedContainer {
+        Anchor: (Width: 440, Height: 260, Top: 30);
+        LayoutMode: Full;
+        Background: #16212f;
+
+        Group #RecipientTopBar {
+          LayoutMode: Middle;
+
+          Label #RecipientHeader {
+            Text: "RECIPIENT";
+            Anchor: (Width: 400, Height: 28, Top: 8);
+            FlexWeight: 1;
+            Style: (FontSize: 20, TextColor: $C.@ColorDefault, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+            MaskTexturePath: $C.@TextHighlightGradientMask;
+          }
+        }
+
+        Group #RecipientMain {
+          LayoutMode: Top;
+          Anchor: (Top: 45);
+
+          Group #RecipientRow {
+            LayoutMode: Left;
+            Padding: (Horizontal: 16, Vertical: 8);
+
+            Group #RecipientImageGroup {
+              Anchor: (Width: 140, Height: 140);
+              LayoutMode: MiddleCenter;
+              Background: #0e151e;
+
+              AssetImage #RecipientImage {
+                Anchor: (Width: 130, Height: 130);
+                FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+                AssetPath: "Icons/ModelsGenerated/Armadillo.png";
+              }
+            }
+
+            Group #RecipientInfo {
+              Anchor: (Width: 250, Left: 16);
+              LayoutMode: Top;
+
+              Label #ToLabel {
+                Text: "TO:";
+                Anchor: (Height: 20);
+                Style: (FontSize: 16, TextColor: $C.@ColorDefaultLabel, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+              }
+
+              Label #RecipientName {
+                Text: "UNKNOWN";
+                Anchor: (Height: 30, Bottom: 6);
+                Style: (FontSize: 18, TextColor: $C.@ColorDefault, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+              }
+
+              Label #RecipientHint {
+                Text: "Deliver the parcel to complete your assignment.";
+                Anchor: (Width: 240);
+                Style: (FontSize: 16, TextColor: $C.@ColorDefaultLabel, Wrap: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+              }
+            }
+          }
+        }
+      }
+
+      $C.@DecoratedContainer #InstructionsContainer {
+        Anchor: (Width: 440, Height: 180, Top: 20);
+        LayoutMode: Full;
+        Background: #16212f;
+
+        Group #InstructionsTopBar {
+          LayoutMode: Middle;
+
+          Label #InstructionsHeader {
+            Text: "DELIVERY INSTRUCTIONS";
+            Anchor: (Width: 400, Height: 28, Top: 8);
+            FlexWeight: 1;
+            Style: (FontSize: 18, TextColor: $C.@ColorDefault, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+            MaskTexturePath: $C.@TextHighlightGradientMask;
+          }
+        }
+
+        Group #InstructionsMain {
+          LayoutMode: Top;
+          Anchor: (Top: 45);
+          Padding: (Horizontal: 20, Vertical: 10);
+
+          Label #InstructionsText {
+            Text: "Hand the parcel to the recipient using F, or throw it directly at them.";
+            Anchor: (Width: 400);
+            Style: (FontSize: 16, TextColor: $C.@ColorDefaultLabel, Wrap: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+          }
+        }
+      }
+    }
+  }
+}
+
+$C.@BackButton {}

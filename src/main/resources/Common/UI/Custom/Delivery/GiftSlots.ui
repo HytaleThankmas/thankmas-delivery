@@ -1,0 +1,68 @@
+$C = "../Common.ui";
+
+$C.@DecoratedContainer {
+  Anchor: (Width: 300, Height: 440, Left: 12, Right: 12);
+  LayoutMode: Full;
+  Background: #16212f;
+
+  Group #TopBar {
+    LayoutMode: Middle;
+
+    Label #ParcelTitle {
+      Text: "Parcel 1";
+      Anchor: (Width: 240, Height: 28, Top: 8);
+      FlexWeight: 1;
+      Style: (FontSize: 20, TextColor: $C.@ColorDefault, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+      MaskTexturePath: $C.@TextHighlightGradientMask;
+    }
+
+  }
+  Group #Main {
+    LayoutMode: Top;
+    Anchor: ( Top: 50);
+    Group #Group2 {
+      Anchor:(Top:-10);
+      LayoutMode: MiddleCenter;
+
+      Label #PointsTitle {
+        Text: "Points: 0";
+        Anchor: (Width: 220, Height: 28);
+        Style: (FontSize: 18, TextColor: $C.@ColorGoldHighlight, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+      }
+
+      Group #ParcelImageGroup {
+        Anchor: (Width: 128, Height: 128);
+
+        ItemSlot #ParcelImage {
+          Anchor: (Width: 128, Height: 128);
+          ShowQualityBackground: false;
+        }
+      }
+
+      Label #PositiveText {
+        Text: "Positive: 1";
+        Anchor: (Width: 260, Top: 24, Bottom: 6);
+        Style: (FontSize: 20, TextColor: #83E79E, HorizontalAlignment: Start, VerticalAlignment: Center);
+      }
+
+      Label #NeutralText {
+        Text: "Neutral: 1";
+        Anchor: (Width: 260, Top: 6, Bottom: 6);
+        Style: (FontSize: 20, TextColor: #FFD469, HorizontalAlignment: Start, VerticalAlignment: Center);
+      }
+
+      Label #PositiveText2 {
+        Text: "Negative: 1";
+        Anchor: (Width: 260, Top: 6, Bottom: 24);
+        Style: (FontSize: 20, TextColor: #FF9D93, HorizontalAlignment: Start, VerticalAlignment: Center);
+      }
+    }
+
+    $C.@TextButton #ChooseButton {
+      Anchor: (Width: 220, Height: 36, Top: 42);
+      Text: "Choose";
+      Visible: true;
+    }
+
+  }
+}
