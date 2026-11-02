@@ -1,7 +1,7 @@
 $C = "../Common.ui";
 
 $C.@DecoratedContainer {
-  Anchor: (Width: 320, Height: 580, Left: 12, Right: 12);
+  Anchor: (Full: 0);
   LayoutMode: Full;
   Background: #16212f;
 
@@ -24,10 +24,27 @@ $C.@DecoratedContainer {
     Group #Group2 {
       LayoutMode: MiddleCenter;
 
-      Label #PointsTitle {
-        Text: "Points: 0";
-        Anchor: (Width: 220, Height: 28, Bottom: 6);
-        Style: (FontSize: 18, TextColor: $C.@ColorGoldHighlight, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Group #PointsGroup {
+        Anchor: (Width: 260, Height: 28, Bottom: 6);
+        LayoutMode: Center;
+
+        Group #PointsInnerGroup {
+          LayoutMode: Left;
+          Anchor: (Height: 28);
+
+          Label #PointsTitle {
+            Text: "Points: 0";
+            Anchor: (Height: 28);
+            Style: (FontSize: 18, TextColor: $C.@ColorGoldHighlight, RenderBold: true, VerticalAlignment: Center);
+          }
+
+          Label #BonusPointsTitle {
+            Text: "";
+            Anchor: (Height: 28);
+            Style: (FontSize: 18, TextColor: #83E79E, RenderBold: true, VerticalAlignment: Center);
+            Visible: false;
+          }
+        }
       }
 
       Group #ParcelImageGroup {
@@ -40,7 +57,7 @@ $C.@DecoratedContainer {
         }
       }
 
-      Group #EffectsContainer {
+      $C.@SimpleContainer #EffectsContainer {
         LayoutMode: Top;
         Anchor: (Width: 280, Left:10, Right:10);
 

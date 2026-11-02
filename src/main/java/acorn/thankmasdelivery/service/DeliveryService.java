@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 import acorn.thankmasdelivery.component.DeliveryAssignmentState;
 import acorn.thankmasdelivery.component.DeliveryNpc;
 import acorn.thankmasdelivery.component.DeliveryOwnership;
+import acorn.thankmasdelivery.component.DeliveryPointsComponent;
 import acorn.thankmasdelivery.component.ThrownPresent;
 import acorn.thankmasdelivery.model.DeliveryIdentity;
 import acorn.thankmasdelivery.model.DeliveryOfferSummary;
@@ -75,6 +76,7 @@ public final class DeliveryService {
     private final ComponentType<EntityStore, DeliveryAssignmentState> assignmentType;
     private final ComponentType<EntityStore, ThrownPresent> thrownPresentType;
     private final ComponentType<EntityStore, DeliveryNpc> npcType;
+    private final ComponentType<EntityStore, DeliveryPointsComponent> pointsType;
     private final DeliveryStore deliveries;
     private final ConcurrentMap<UUID, DeliveryAssignment> activeAssignments = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, DispatcherConversation> conversations = new ConcurrentHashMap<>();
@@ -130,16 +132,28 @@ public final class DeliveryService {
         ComponentType<EntityStore, ThrownPresent> thrownPresentType,
         ComponentType<ChunkStore, DeliveryOwnership> ownershipType,
         ComponentType<EntityStore, DeliveryNpc> npcType,
+        ComponentType<EntityStore, DeliveryPointsComponent> pointsType,
         DeliveryStore deliveries
     ) {
         this.assignmentType = assignmentType;
         this.thrownPresentType = thrownPresentType;
         this.parcels = new DeliveryParcels(assignmentType, thrownPresentType, ownershipType, activeAssignments, pending::containsKey);
         this.npcType = npcType;
+        this.pointsType = pointsType;
         this.deliveries = deliveries;
         this.actions = new DeliveryActions(deliveries);
         this.recipients = new DeliveryRecipientRegistry(deliveries, actions, DeliveryService::logFailure);
         retries.scheduleWithFixedDelay(recipients::retryRetirements, RETRY_INTERVAL_SECONDS, RETRY_INTERVAL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    public DeliveryService(
+        ComponentType<EntityStore, DeliveryAssignmentState> assignmentType,
+        ComponentType<EntityStore, ThrownPresent> thrownPresentType,
+        ComponentType<ChunkStore, DeliveryOwnership> ownershipType,
+        ComponentType<EntityStore, DeliveryNpc> npcType,
+        DeliveryStore deliveries
+    ) {
+        this(assignmentType, thrownPresentType, ownershipType, npcType, DeliveryPointsComponent.getComponentType(), deliveries);
     }
 
     public DeliveryStore deliveryStore() {
@@ -210,10 +224,12 @@ public final class DeliveryService {
         DeliveryNpc marker = npc.getStore().getComponent(npc, npcType);
         Profile profile = deliveries.profile(player.getUuid(), player.getUsername());
         String greeting = DeliveryDialogue.greeting(profile.talked(), profile.outcome(), profile.active() != null);
-        boolean canOffer = profile.active() == null && !eligibleRecipients(world).isEmpty() && DeliveryAssets.missing().isEmpty();
+        Set<String> eligible = eligibleRecipients(world);
+        boolean canOffer = profile.active() == null && !eligible.isEmpty() && DeliveryAssets.missing().isEmpty();
+        int dispatcherBonus = marker != null ? marker.getBonusPoints() : 0;
         operation(player, world, () -> {
             deliveries.talked(player.getUuid(), player.getUsername());
-            return canOffer ? deliveries.offers(player.getUuid(), player.getUsername()) : null;
+            return canOffer ? deliveries.offers(player.getUuid(), player.getUsername(), dispatcherBonus, eligible) : null;
         }, offers -> {
             if (!isDispatcherInReach(player, npc)) {
                 return;
@@ -254,11 +270,8 @@ public final class DeliveryService {
     public List<DeliveryOfferSummary> getOrCreateOfferSummaries(PlayerRef player) {
         try {
             DeliveryStore.Offers offers = deliveries.offers(player.getUuid(), player.getUsername());
-            if (offers != null) {
-                offers.summaries();
-                if (!offers.summaries().isEmpty()) {
-                    return offers.summaries();
-                }
+            if (offers != null && offers.summaries() != null && !offers.summaries().isEmpty()) {
+                return offers.summaries();
             }
         } catch (Exception ignored) {
         }
@@ -313,7 +326,16 @@ public final class DeliveryService {
             tell(player, unavailable);
             return;
         }
-        operation(player, world, () -> deliveries.offers(player.getUuid(), player.getUsername()), offers -> {
+        Ref<EntityStore> npc = conversation.npc();
+        int bonusPoints = 0;
+        if (npc != null && npc.isValid()) {
+            DeliveryNpc marker = npc.getStore().getComponent(npc, npcType);
+            if (marker != null) {
+                bonusPoints = marker.getBonusPoints();
+            }
+        }
+        int finalBonusPoints = bonusPoints;
+        operation(player, world, () -> deliveries.offers(player.getUuid(), player.getUsername(), finalBonusPoints, eligibleRecipients(world)), offers -> {
             if (!isDispatcherInReach(player, conversation.npc())) {
                 return;
             }
@@ -618,9 +640,11 @@ public final class DeliveryService {
             return;
         }
         String recipientId = assignment.run.recipient().id();
+        int finalBonus = assignment.run.bonusPoints();
+
         operation(player, assignment.world,
             () -> assignment.session.isActive()
-            && deliveries.finishAtRecipient(player.getUuid(), player.getUsername(), assignment.session.identity().assignmentId(), recipientId),
+            && deliveries.finishAtRecipient(player.getUuid(), player.getUsername(), assignment.session.identity().assignmentId(), recipientId, finalBonus),
             finished -> {
             if (!finished) {
                 tell(player, "This delivery has ended. Talk to the dispatcher to start again.");
@@ -628,8 +652,27 @@ public final class DeliveryService {
             }
             activeAssignments.remove(player.getUuid(), assignment);
             end(assignment);
-            tell(player, "Parcel delivered! +" + (assignment.run.testMode() ? 0 : assignment.session.option().points()) + " points. Total: "
-                + deliveries.profile(player.getUuid(), player.getUsername()).score() + ". Effects removed.");
+            int earnedPoints = assignment.run.testMode() ? 0 : (assignment.session.option().points() + finalBonus);
+            int totalPoints = earnedPoints;
+            Ref<EntityStore> playerRef = player.getReference();
+            if (playerRef != null && playerRef.isValid()) {
+                Store<EntityStore> store = playerRef.getStore();
+                DeliveryPointsComponent pointsComp = pointsType != null ? store.getComponent(playerRef, pointsType) : null;
+                if (pointsComp == null && pointsType != null) {
+                    pointsComp = new DeliveryPointsComponent();
+                    store.putComponent(playerRef, pointsType, pointsComp);
+                }
+                if (pointsComp != null) {
+                    pointsComp.addPoints(earnedPoints);
+                    totalPoints = pointsComp.getPoints();
+                } else {
+                    totalPoints = (int) deliveries.profile(player.getUuid(), player.getUsername()).score();
+                }
+            } else {
+                totalPoints = (int) deliveries.profile(player.getUuid(), player.getUsername()).score();
+            }
+            tell(player, "Parcel delivered! +" + earnedPoints + " points. Total: "
+                + totalPoints + ". Effects removed.");
             celebrateRecipient(recipientNpc);
         });
     }
@@ -865,6 +908,59 @@ public final class DeliveryService {
                     abandon(assignment, "Your parcel was destroyed.");
                 }
             });
+        }
+    }
+
+    public ComponentType<EntityStore, DeliveryPointsComponent> pointsType() {
+        return pointsType;
+    }
+
+    public int getPlayerPoints(PlayerRef player) {
+        if (player != null && player.getReference() != null && player.getReference().isValid()) {
+            Ref<EntityStore> ref = player.getReference();
+            if (pointsType != null) {
+                DeliveryPointsComponent comp = ref.getStore().getComponent(ref, pointsType);
+                if (comp != null) {
+                    return comp.getPoints();
+                }
+            }
+        }
+        return (int) deliveries.profile(player.getUuid(), player.getUsername()).score();
+    }
+
+    public boolean addPlayerPoints(PlayerRef player, int amount) {
+        if (player != null && player.getReference() != null && player.getReference().isValid() && pointsType != null) {
+            Ref<EntityStore> ref = player.getReference();
+            DeliveryPointsComponent comp = ref.getStore().getComponent(ref, pointsType);
+            if (comp == null) {
+                comp = new DeliveryPointsComponent();
+                ref.getStore().putComponent(ref, pointsType, comp);
+            }
+            return comp.addPoints(amount);
+        }
+        return false;
+    }
+
+    public boolean removePlayerPoints(PlayerRef player, int amount) {
+        if (player != null && player.getReference() != null && player.getReference().isValid() && pointsType != null) {
+            Ref<EntityStore> ref = player.getReference();
+            DeliveryPointsComponent comp = ref.getStore().getComponent(ref, pointsType);
+            if (comp != null) {
+                return comp.removePoints(amount);
+            }
+        }
+        return false;
+    }
+
+    public void setPlayerPoints(PlayerRef player, int amount) {
+        if (player != null && player.getReference() != null && player.getReference().isValid() && pointsType != null) {
+            Ref<EntityStore> ref = player.getReference();
+            DeliveryPointsComponent comp = ref.getStore().getComponent(ref, pointsType);
+            if (comp == null) {
+                comp = new DeliveryPointsComponent();
+                ref.getStore().putComponent(ref, pointsType, comp);
+            }
+            comp.setPoints(amount);
         }
     }
 

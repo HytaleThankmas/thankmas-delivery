@@ -10,6 +10,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
@@ -47,29 +48,39 @@ public class DeliveryPage extends InteractiveCustomUIPage<DeliveryPage.DeliveryP
         @Nonnull Store<EntityStore> store
     ) {
         commandBuilder.append(UI_PAGE_PATH);
-        commandBuilder.clear("#GiftGrid");
 
-        for (int i = 0; i < offers.size() && i < 3; i++) {
-            DeliveryOfferSummary summary = offers.get(i);
-            commandBuilder.append("#GiftGrid", UI_SLOT_PATH);
-            String slotPath = "#GiftGrid[" + i + "]";
+        for (int i = 0; i < 3; i++) {
+            String slotPath = "#Slot" + i;
+            commandBuilder.clear(slotPath);
+            if (i < offers.size()) {
+                DeliveryOfferSummary summary = offers.get(i);
+                commandBuilder.append(slotPath, UI_SLOT_PATH);
 
-            String parcelTitle = switch (i) {
-                case 0 -> "Parcel One";
-                case 1 -> "Parcel Two";
-                case 2 -> "Parcel Three";
-                default -> "Parcel " + (i + 1);
-            };
+                String parcelTitle = switch (i) {
+                    case 0 -> "Parcel One";
+                    case 1 -> "Parcel Two";
+                    case 2 -> "Parcel Three";
+                    default -> "Parcel " + (i + 1);
+                };
 
-            commandBuilder.set(slotPath + " #ParcelTitle.Text", parcelTitle);
-            commandBuilder.set(slotPath + " #PointsTitle.Text", "Points: " + summary.points());
-            commandBuilder.set(slotPath + " #ParcelImage.ItemId", DeliveryService.PRESENT_BLOCK_ID);
-            commandBuilder.set(slotPath + " #PositiveText.Text", "Positive: " + summary.positive());
-            commandBuilder.set(slotPath + " #NeutralText.Text", "Neutral: " + summary.neutral());
-            commandBuilder.set(slotPath + " #PositiveText2.Text", "Negative: " + summary.negative());
+                commandBuilder.set(slotPath + " #ParcelTitle.Text", parcelTitle);
 
-            EventData clickData = EventData.of(DeliveryPageData.KEY_OPTION, String.valueOf(i + 1));
-            eventBuilder.addEventBinding(CustomUIEventBindingType.Activating, slotPath + " #ChooseButton", clickData, false);
+                commandBuilder.set(slotPath + " #PointsTitle.Text", "Points: " + summary.points());
+                if (summary.bonusPoints() > 0) {
+                    commandBuilder.set(slotPath + " #BonusPointsTitle.Text", " +" + summary.bonusPoints());
+                    commandBuilder.set(slotPath + " #BonusPointsTitle.Visible", true);
+                } else {
+                    commandBuilder.set(slotPath + " #BonusPointsTitle.Text", "");
+                    commandBuilder.set(slotPath + " #BonusPointsTitle.Visible", false);
+                }
+                commandBuilder.set(slotPath + " #ParcelImage.ItemId", DeliveryService.PRESENT_BLOCK_ID);
+                commandBuilder.set(slotPath + " #PositiveText.Text", "Positive: " + summary.positive());
+                commandBuilder.set(slotPath + " #NeutralText.Text", "Neutral: " + summary.neutral());
+                commandBuilder.set(slotPath + " #PositiveText2.Text", "Negative: " + summary.negative());
+
+                EventData clickData = EventData.of(DeliveryPageData.KEY_OPTION, String.valueOf(i + 1));
+                eventBuilder.addEventBinding(CustomUIEventBindingType.Activating, slotPath + " #ChooseButton", clickData, false);
+            }
         }
     }
 

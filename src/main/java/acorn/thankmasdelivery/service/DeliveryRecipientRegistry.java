@@ -112,18 +112,78 @@ final class DeliveryRecipientRegistry {
 
     void observe(Ref<EntityStore> ref, DeliveryNpc marker) {
         if (!marker.recipient()) {
-            return;
-        }
-        Destination destination = deliveries.recipient(marker.id());
-        if (destination == null || destination.disabled()) {
+            Store<EntityStore> store = ref.getStore();
+            UUIDComponent uuid = store != null ? store.getComponent(ref, UUIDComponent.getComponentType()) : null;
+            UUID entityUuid = uuid != null ? uuid.getUuid() : null;
+            for (Entry<String, LiveRecipient> entry : liveRecipients.entrySet()) {
+                if (entry.getValue().ref().equals(ref) || (entityUuid != null && entry.getValue().entityId().equals(entityUuid))) {
+                    String oldId = entry.getKey();
+                    liveRecipients.remove(oldId);
+                    deliveries.removeRecipient(oldId);
+                }
+            }
             return;
         }
         Store<EntityStore> store = ref.getStore();
         UUIDComponent uuid = store.getComponent(ref, UUIDComponent.getComponentType());
-        if (uuid == null || !destination.entityId().equals(uuid.getUuid())) {
+        if (uuid == null) {
             return;
         }
+        UUID entityUuid = uuid.getUuid();
+        for (Entry<String, LiveRecipient> entry : liveRecipients.entrySet()) {
+            if (!entry.getKey().equals(marker.id()) && (entry.getValue().ref().equals(ref) || entry.getValue().entityId().equals(entityUuid))) {
+                String oldId = entry.getKey();
+                liveRecipients.remove(oldId);
+                deliveries.removeRecipient(oldId);
+            }
+        }
         World world = store.getExternalData().getWorld();
+        Destination destination = deliveries.recipient(marker.id());
+        TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
+        Vector3d p = transform != null ? transform.getPosition() : new Vector3d();
+
+        if (destination == null) {
+            String hint = (marker.hint() != null && !marker.hint().isBlank()) ? marker.hint() : "";
+            Destination newDest = new Destination(
+                marker.id(),
+                marker.name(),
+                world.getName(),
+                p.x(),
+                p.y(),
+                p.z(),
+                hint,
+                uuid.getUuid(),
+                world.getWorldConfig().getUuid(),
+                false,
+                "",
+                marker.getBonusPoints()
+            );
+            deliveries.register(newDest);
+            destination = newDest;
+        } else if (destination.disabled()) {
+            return;
+        } else if (!destination.entityId().equals(uuid.getUuid()) || !world.getWorldConfig().getUuid().equals(destination.worldId())
+            || (marker.getBonusPoints() > 0 && destination.bonusPoints() != marker.getBonusPoints())) {
+            String hint = (marker.hint() != null && !marker.hint().isBlank()) ? marker.hint() : destination.hint();
+            int bonus = marker.getBonusPoints() > 0 ? marker.getBonusPoints() : destination.bonusPoints();
+            Destination reconnected = new Destination(
+                destination.id(),
+                marker.name() != null && !marker.name().isBlank() ? marker.name() : destination.name(),
+                world.getName(),
+                p.x(),
+                p.y(),
+                p.z(),
+                hint,
+                uuid.getUuid(),
+                world.getWorldConfig().getUuid(),
+                false,
+                destination.celebrationEmote(),
+                bonus
+            );
+            deliveries.register(reconnected);
+            destination = reconnected;
+        }
+
         LiveRecipient live = liveRecipients.get(marker.id());
         if (live == null || !live.ref().equals(ref)) {
             liveRecipients.put(marker.id(), new LiveRecipient(ref, uuid.getUuid(), world));
@@ -133,7 +193,6 @@ final class DeliveryRecipientRegistry {
             acorn.thankmasdelivery.npc.DeliveryNpcAppearanceHelper.cacheAppearance(marker.id(), liveAppearance);
             acorn.thankmasdelivery.npc.DeliveryNpcAppearanceHelper.cacheAppearance(uuid.getUuid(), liveAppearance);
         }
-        TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
         if (transform == null || (world.getWorldConfig().getUuid().equals(destination.worldId())
             && Math.floor(destination.x()) == Math.floor(transform.getPosition().x())
             && Math.floor(destination.y()) == Math.floor(transform.getPosition().y())
@@ -143,15 +202,16 @@ final class DeliveryRecipientRegistry {
         if (!registeringRecipients.add(marker.id())) {
             return;
         }
-        Vector3d p = transform.getPosition();
-        Destination updatedDestination = new DeliveryStore.Destination(destination.id(), marker.name(), world.getName(), p.x(), p.y(), p.z(),
-            destination.hint(), uuid.getUuid(), world.getWorldConfig().getUuid(), false);
+        Vector3d currentPos = transform.getPosition();
+        int bonusToKeep = marker.getBonusPoints() > 0 ? marker.getBonusPoints() : destination.bonusPoints();
+        Destination updatedDestination = new DeliveryStore.Destination(destination.id(), marker.name(), world.getName(), currentPos.x(), currentPos.y(), currentPos.z(),
+            destination.hint(), uuid.getUuid(), world.getWorldConfig().getUuid(), false, destination.celebrationEmote(), bonusToKeep);
         actions.submit(() -> {
             Destination latest = deliveries.recipient(marker.id());
             if (latest != null && !latest.disabled() && latest.entityId().equals(updatedDestination.entityId())) {
                 deliveries.register(new DeliveryStore.Destination(updatedDestination.id(), updatedDestination.name(), updatedDestination.world(),
                     updatedDestination.x(), updatedDestination.y(), updatedDestination.z(), latest.hint(), updatedDestination.entityId(),
-                    updatedDestination.worldId(), false, latest.celebrationEmote()));
+                    updatedDestination.worldId(), false, latest.celebrationEmote(), bonusToKeep));
             }
             return true;
         }).whenComplete((ok, error) -> {

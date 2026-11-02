@@ -62,7 +62,7 @@ public final class DeliveryAssets {
                 missing.add("effect Parcel_Effect_" + model);
             }
         }
-        for (String root : List.of("Parcel_Delivery_NPC", "Parcel_Throw", "Parcel_Pickup", "Parcel_Dash")) {
+        for (String root : List.of("Parcel_Delivery_NPC", "Parcel_Throw", "Parcel_Pickup", "Parcel_Dash", "Parcel_Inspect")) {
             if (com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction.getAssetMap().getAsset(root) == null) {
                 missing.add("root interaction " + root);
             }
