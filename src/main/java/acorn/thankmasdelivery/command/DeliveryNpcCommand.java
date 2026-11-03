@@ -162,6 +162,8 @@ public final class DeliveryNpcCommand extends AbstractPlayerCommand {
             try {
                 store.addComponent(npc, service.npcType(), marker);
                 DisplayNameSupport.setDisplayName(npc, displayName, store);
+                Nameplate nameplateComp = store.ensureAndGetComponent(npc, Nameplate.getComponentType());
+                nameplateComp.setText(displayName.startsWith("[NPC] ") ? displayName : "[NPC] " + displayName);
                 Interactions interactions = oldInteractions == null ? new Interactions() : (Interactions) oldInteractions.clone();
                 if (interactions.getInteractionId(InteractionType.Use) == null) {
                     interactions.setInteractionId(InteractionType.Use, "Parcel_Delivery_NPC");

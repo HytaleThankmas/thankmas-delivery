@@ -106,7 +106,6 @@ public class ThankmasDeliveryPlugin extends JavaPlugin {
         getEntityStoreRegistry().registerSystem(new DeliveryPlayerInitSystem(movementStateType, pointsType, deliveries));
         getEntityStoreRegistry().registerSystem(new DeliveryParcelRemovalSystem(deliveryService, thrownPresentType));
         getEntityStoreRegistry().registerSystem(new DeliveryNpcTrackingSystem(deliveryService, npcType));
-        getEntityStoreRegistry().registerSystem(new acorn.thankmasdelivery.system.npc.DeliveryNpcNameSystem(npcType));
         getEntityStoreRegistry().registerSystem(new DeliveryNpcRemovalSystem(deliveryService, npcType));
         // World transfers end the old delivery, even if the player remains connected.
         getEventRegistry().registerGlobal(AddPlayerToWorldEvent.class, event -> {
