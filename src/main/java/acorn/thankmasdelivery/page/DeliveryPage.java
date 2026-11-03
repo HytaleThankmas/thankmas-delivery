@@ -74,6 +74,18 @@ public class DeliveryPage extends InteractiveCustomUIPage<DeliveryPage.DeliveryP
                     commandBuilder.set(slotPath + " #BonusPointsTitle.Visible", false);
                 }
                 commandBuilder.set(slotPath + " #ParcelImage.ItemId", DeliveryService.PRESENT_BLOCK_ID);
+                if(summary.positive() == 0 )
+                {
+                    commandBuilder.set(slotPath + " #PositiveText.Visible",false);
+                }
+                if(summary.neutral() == 0 )
+                {
+                    commandBuilder.set(slotPath + " #NeutralText.Visible",false);
+                }
+                if(summary.negative() == 0 )
+                {
+                    commandBuilder.set(slotPath + " #PositiveText2.Visible",false);
+                }
                 commandBuilder.set(slotPath + " #PositiveText.Text", "Positive: " + summary.positive());
                 commandBuilder.set(slotPath + " #NeutralText.Text", "Neutral: " + summary.neutral());
                 commandBuilder.set(slotPath + " #PositiveText2.Text", "Negative: " + summary.negative());

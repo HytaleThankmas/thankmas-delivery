@@ -31,6 +31,7 @@ public final class DeliveryCommand extends AbstractPlayerCommand {
         addSubCommand(new ActionCommand("deliver", "Show instructions for handing your parcel to its recipient.", deliveryService));
         addSubCommand(new ActionCommand("stop", "Remove your parcel and all assignment effects without points.", deliveryService));
         addSubCommand(new DeliveryNpcCommand(deliveryService));
+        addSubCommand(new PointsCommand(deliveryService));
     }
 
     @Override
@@ -146,6 +147,24 @@ public final class DeliveryCommand extends AbstractPlayerCommand {
             catch (IllegalArgumentException invalid) {
                 reply(context, invalid.getMessage());
             }
+        }
+    }
+
+    public static final class PointsCommand extends AbstractPlayerCommand {
+        private final DeliveryService service;
+
+        public PointsCommand(DeliveryService service) {
+            super("points", "Check your delivery points.");
+            this.service = service;
+            requireNoPermission();
+            addAliases("score");
+        }
+
+        @Override
+        protected void execute(CommandContext context, Store<EntityStore> store, Ref<EntityStore> entity,
+            PlayerRef player, World world) {
+            int pts = service.getPlayerPoints(player);
+            reply(context, "You currently have " + pts + " delivery points.");
         }
     }
 

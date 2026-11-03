@@ -59,20 +59,20 @@ $C.@SimpleContainer {
       LayoutMode: Top;
       Label #PositiveText {
         Text: "Positive: 1";
-        Anchor: (Width: 260, Top: 6, Bottom: 6, Left:3);
-        Style: (FontSize: 20, TextColor: #83E79E, HorizontalAlignment: Start, VerticalAlignment: Center);
+        Anchor: (Width: 260, Top: 6, Bottom: 6);
+        Style: (FontSize: 20, TextColor: #83E79E, HorizontalAlignment: Center, VerticalAlignment: Center);
       }
 
       Label #NeutralText {
         Text: "Neutral: 1";
-        Anchor: (Width: 260, Top: 6, Bottom: 6, Left:3);
-        Style: (FontSize: 20, TextColor: #FFD469, HorizontalAlignment: Start, VerticalAlignment: Center);
+        Anchor: (Width: 260, Top: 6, Bottom: 6);
+        Style: (FontSize: 20, TextColor: #FFD469, HorizontalAlignment: Center, VerticalAlignment: Center);
       }
 
       Label #PositiveText2 {
         Text: "Negative: 1";
-        Anchor: (Width: 260, Top: 6, Bottom: 6, Left:3);
-        Style: (FontSize: 20, TextColor: #FF9D93, HorizontalAlignment: Start, VerticalAlignment: Center);
+        Anchor: (Width: 260, Top: 6, Bottom: 6);
+        Style: (FontSize: 20, TextColor: #FF9D93, HorizontalAlignment: Center, VerticalAlignment: Center);
       }
 }
 
