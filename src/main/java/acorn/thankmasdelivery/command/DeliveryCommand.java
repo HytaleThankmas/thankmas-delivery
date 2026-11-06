@@ -22,13 +22,16 @@ public final class DeliveryCommand extends AbstractPlayerCommand {
         super("parcel", "Thankmas Delivery commands.");
         this.deliveryService = deliveryService;
         requireNoPermission();
+        addAliases("delivery");
         addSubCommand(new ActionCommand("choices", "Show your three parcel choices.", deliveryService));
         addSubCommand(new ChooseCommand(deliveryService));
         addSubCommand(new TestCommand(deliveryService));
+        addSubCommand(new ActiveDeliveryCommand(deliveryService));
         addSubCommand(new ActionCommand("effectlist", "List available parcel effects and their descriptions.", deliveryService));
         addSubCommand(new ActionCommand("deliver", "Show instructions for handing your parcel to its recipient.", deliveryService));
         addSubCommand(new ActionCommand("stop", "Remove your parcel and all assignment effects without points.", deliveryService));
         addSubCommand(new DeliveryNpcCommand(deliveryService));
+        addSubCommand(new PointsCommand(deliveryService));
     }
 
     @Override
@@ -39,7 +42,37 @@ public final class DeliveryCommand extends AbstractPlayerCommand {
         PlayerRef player,
         World world
     ) {
+        if (deliveryService.hasActiveDelivery(player.getUuid())) {
+            deliveryService.openActiveDeliveryPage(store, entity, player);
+            return;
+        }
         deliveryService.choices(player);
+    }
+
+    private static final class ActiveDeliveryCommand extends AbstractPlayerCommand {
+        private final DeliveryService service;
+
+        ActiveDeliveryCommand(DeliveryService service) {
+            super("active", "Open your active delivery parcel details.");
+            this.service = service;
+            requireNoPermission();
+            addAliases("details", "info", "view", "current", "inspect");
+        }
+
+        @Override
+        protected void execute(
+            CommandContext context,
+            Store<EntityStore> store,
+            Ref<EntityStore> entity,
+            PlayerRef player,
+            World world
+        ) {
+            if (!service.hasActiveDelivery(player.getUuid())) {
+                context.sendMessage(DeliveryMessages.withPrefix(Message.raw("You do not have an active delivery parcel.")));
+                return;
+            }
+            service.openActiveDeliveryPage(store, entity, player);
+        }
     }
 
     private static final class ActionCommand extends AbstractPlayerCommand {
@@ -114,6 +147,24 @@ public final class DeliveryCommand extends AbstractPlayerCommand {
             catch (IllegalArgumentException invalid) {
                 reply(context, invalid.getMessage());
             }
+        }
+    }
+
+    public static final class PointsCommand extends AbstractPlayerCommand {
+        private final DeliveryService service;
+
+        public PointsCommand(DeliveryService service) {
+            super("points", "Check your delivery points.");
+            this.service = service;
+            requireNoPermission();
+            addAliases("score");
+        }
+
+        @Override
+        protected void execute(CommandContext context, Store<EntityStore> store, Ref<EntityStore> entity,
+            PlayerRef player, World world) {
+            int pts = service.getPlayerPoints(player);
+            reply(context, "You currently have " + pts + " delivery points.");
         }
     }
 

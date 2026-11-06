@@ -31,7 +31,15 @@ public final class DeliveryMessages {
         Message message = Message.empty()
             .insert(Message.raw("Choose your parcel\n").color(HEADING_COLOR).bold(true));
         for (DeliveryOfferSummary option : options) {
-            message.insert(Message.raw("\nParcel " + option.number() + " | " + option.points() + " points\n").color(COMMAND_COLOR))
+            Message pointsPart = Message.raw(String.valueOf(option.points())).color(COMMAND_COLOR);
+            if (option.bonusPoints() > 0) {
+                pointsPart.insert(Message.raw(" +" + option.bonusPoints()).color(POSITIVE_COLOR));
+            }
+            String toPart = (option.recipientName() != null && !option.recipientName().isBlank())
+                ? " -> " + option.recipientName() : "";
+            message.insert(Message.raw("\nParcel " + option.number() + toPart + " | ").color(COMMAND_COLOR))
+                .insert(pointsPart)
+                .insert(Message.raw(" points\n").color(COMMAND_COLOR))
                 .insert(Message.raw("Positive: " + option.positive() + "  ").color(POSITIVE_COLOR))
                 .insert(Message.raw("Neutral: " + option.neutral() + "  ").color(NEUTRAL_COLOR))
                 .insert(Message.raw("Negative: " + option.negative() + "\n").color(NEGATIVE_COLOR));

@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -44,22 +45,44 @@ import java.util.function.Supplier;
  */
 public final class DeliveryStore {
     private static final Gson JSON = new GsonBuilder().setPrettyPrinting().create();
-    public record Offers(UUID token, List<DeliveryOption> options) {
-        public Offers {
-            options = List.copyOf(options);
-            if (token == null || options.size() != 3) {
+    public record Offers(UUID token, List<DeliveryOption> options, List<Integer> bonusPoints, List<Destination> recipients) {
+        public Offers(UUID token, List<DeliveryOption> options, List<Integer> bonusPoints, List<Destination> recipients) {
+            this.token = Objects.requireNonNull(token);
+            this.options = List.copyOf(options);
+            this.bonusPoints = List.copyOf(bonusPoints);
+            this.recipients = List.copyOf(recipients);
+            if (this.options.size() != 3) {
                 throw new IllegalArgumentException("Invalid offers");
             }
+        }
+        public Offers(UUID token, List<DeliveryOption> options, int bonusPoints, Destination recipient) {
+            this(token, options, List.of(bonusPoints, bonusPoints, bonusPoints),
+                recipient != null ? List.of(recipient, recipient, recipient) : List.of());
+        }
+        public Offers(UUID token, List<DeliveryOption> options, int bonusPoints) {
+            this(token, options, bonusPoints, null);
+        }
+        public Offers(UUID token, List<DeliveryOption> options) {
+            this(token, options, 0, null);
+        }
+        public Destination recipient(int index) {
+            return (index >= 0 && index < recipients.size()) ? recipients.get(index) : null;
+        }
+        public int bonusPoints(int index) {
+            return (index >= 0 && index < bonusPoints.size()) ? bonusPoints.get(index) : 0;
         }
         public List<DeliveryOfferSummary> summaries() {
             List<DeliveryOfferSummary> summaries = new ArrayList<>();
             for (int i = 0; i < options.size(); i++) {
-                summaries.add(DeliveryOfferSummary.of(i + 1, options.get(i)));
+                int bonus = (i < bonusPoints.size()) ? bonusPoints.get(i) : 0;
+                Destination dest = (i < recipients.size()) ? recipients.get(i) : null;
+                String destName = dest != null ? dest.name() : "";
+                summaries.add(DeliveryOfferSummary.of(i + 1, options.get(i), bonus, destName));
             }
             return List.copyOf(summaries);
         }
     }
-    public record Destination(String id, String name, String world, double x, double y, double z, String hint, UUID entityId, UUID worldId, boolean disabled, String celebrationEmote) {
+    public record Destination(String id, String name, String world, double x, double y, double z, String hint, UUID entityId, UUID worldId, boolean disabled, String celebrationEmote, int bonusPoints) {
         public Destination {
             if (id == null || !id.matches("[a-z0-9_-]{1,64}") || name == null || name.isBlank()
                 || world == null || !Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) {
@@ -70,13 +93,19 @@ public final class DeliveryStore {
             hint = Objects.requireNonNull(hint).strip();
             celebrationEmote = Objects.requireNonNull(celebrationEmote).strip();
         }
+        public Destination(String id, String name, String world, double x, double y, double z, String hint, UUID entityId, UUID worldId, boolean disabled, String celebrationEmote) {
+            this(id, name, world, x, y, z, hint, entityId, worldId, disabled, celebrationEmote, 0);
+        }
         public Destination(String id, String name, String world, double x, double y, double z, String hint, UUID entityId, UUID worldId, boolean disabled) {
-            this(id, name, world, x, y, z, hint, entityId, worldId, disabled, "");
+            this(id, name, world, x, y, z, hint, entityId, worldId, disabled, "", 0);
         }
     }
-    public record Run(DeliveryIdentity identity, DeliveryOption option, Destination recipient, boolean testMode) {
+    public record Run(DeliveryIdentity identity, DeliveryOption option, Destination recipient, boolean testMode, int bonusPoints) {
         public Run(DeliveryIdentity identity, DeliveryOption option, Destination recipient) {
-            this(identity, option, recipient, false);
+            this(identity, option, recipient, false, 0);
+        }
+        public Run(DeliveryIdentity identity, DeliveryOption option, Destination recipient, boolean testMode) {
+            this(identity, option, recipient, testMode, 0);
         }
         public Run {
             Objects.requireNonNull(identity);
@@ -256,19 +285,67 @@ public final class DeliveryStore {
     }
 
     public synchronized Offers offers(UUID owner, String name) {
+        if (sessionOffers.containsKey(owner)) {
+            return sessionOffers.get(owner);
+        }
+        return offers(owner, name, 0, java.util.Collections.emptySet());
+    }
+
+    public synchronized Offers offers(UUID owner, String name, int dispatcherBonus) {
+        return offers(owner, name, dispatcherBonus, java.util.Collections.emptySet());
+    }
+
+    public synchronized Offers offers(UUID owner, String name, int dispatcherBonus, Set<String> eligible) {
         Profile p = profile(owner, name);
         if (p.active != null) {
             throw new IllegalStateException("Finish your current delivery first.");
         }
-        if (sessionOffers.containsKey(owner)) {
-            return sessionOffers.get(owner);
-        }
         if (state.recipients.isEmpty()) {
             throw new IllegalStateException("No recipients are configured yet.");
         }
-        Offers offers = new Offers(UUID.randomUUID(), DeliveryOption.randomChoices(ThreadLocalRandom.current()));
+
+        List<Destination> picked = pickDistinctRecipients(eligible, 3);
+        List<Integer> bonuses = new ArrayList<>(3);
+        for (Destination d : picked) {
+            bonuses.add(dispatcherBonus + (d != null ? d.bonusPoints() : 0));
+        }
+
+        if (sessionOffers.containsKey(owner)) {
+            Offers existing = sessionOffers.get(owner);
+            boolean allValid = existing.recipients() != null && existing.recipients().size() == 3
+                && existing.recipients().stream().allMatch(d -> d != null && (eligible == null || eligible.isEmpty() || eligible.contains(d.id())));
+            if (allValid && existing.bonusPoints.equals(bonuses)) {
+                return existing;
+            }
+            List<Destination> targetRecipients = allValid ? existing.recipients() : picked;
+            List<Integer> effectiveBonuses = new ArrayList<>(3);
+            for (Destination d : targetRecipients) {
+                effectiveBonuses.add(dispatcherBonus + (d != null ? d.bonusPoints() : 0));
+            }
+            Offers updated = new Offers(existing.token(), existing.options(), effectiveBonuses, targetRecipients);
+            sessionOffers.put(owner, updated);
+            return updated;
+        }
+
+        Offers offers = new Offers(UUID.randomUUID(), DeliveryOption.randomChoices(ThreadLocalRandom.current()), bonuses, picked);
         sessionOffers.put(owner, offers);
         return offers;
+    }
+
+    private List<Destination> pickDistinctRecipients(Set<String> eligible, int count) {
+        List<Destination> reachable = (eligible != null && !eligible.isEmpty())
+            ? eligible.stream().map(state.recipients::get).filter(Objects::nonNull).filter(d -> !d.disabled).toList()
+            : state.recipients.values().stream().filter(d -> !d.disabled).toList();
+        if (reachable.isEmpty()) {
+            throw new IllegalStateException("No reachable recipients are available in this world.");
+        }
+        List<Destination> shuffled = new ArrayList<>(reachable);
+        Collections.shuffle(shuffled, ThreadLocalRandom.current());
+        List<Destination> result = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            result.add(shuffled.get(i % shuffled.size()));
+        }
+        return List.copyOf(result);
     }
 
     /** Immediately cancels a player's session without waiting for disk or the save executor. */
@@ -283,8 +360,13 @@ public final class DeliveryStore {
         if (p.active != null || offers == null || !offers.token.equals(offerToken) || index < 1 || index > DeliveryOption.CHOICE_COUNT) {
             throw new IllegalStateException("Those parcel choices are out of date. Talk to the dispatcher again.");
         }
-        Destination recipient = randomRecipient(eligible);
-        Run run = new Run(new DeliveryIdentity(owner, UUID.randomUUID()), offers.options.get(index - 1), recipient);
+        int optionIndex = index - 1;
+        Destination recipient = offers.recipient(optionIndex);
+        if (recipient == null || (eligible != null && !eligible.isEmpty() && !eligible.contains(recipient.id()))) {
+            recipient = randomRecipient(eligible);
+        }
+        int totalBonus = offers.bonusPoints(optionIndex);
+        Run run = new Run(new DeliveryIdentity(owner, UUID.randomUUID()), offers.options.get(optionIndex), recipient, false, totalBonus);
         remember(owner, p.withRun(run));
         sessionOffers.remove(owner);
         return run;
@@ -316,6 +398,10 @@ public final class DeliveryStore {
     }
 
     public synchronized boolean finishAtRecipient(UUID owner, String name, UUID assignment, String recipient) {
+        return finishAtRecipient(owner, name, assignment, recipient, 0);
+    }
+
+    public synchronized boolean finishAtRecipient(UUID owner, String name, UUID assignment, String recipient, int bonusPoints) {
         Profile p = profile(owner, name);
         if (p.active == null || !p.active.recipient.id.equals(recipient)) {
             return false;
@@ -324,13 +410,19 @@ public final class DeliveryStore {
         if (current == null || current.disabled) {
             return false;
         }
-        return finish(owner, name, assignment, Outcome.COMPLETED);
+        return finish(owner, name, assignment, Outcome.COMPLETED, bonusPoints, null);
     }
 
     public synchronized boolean finish(UUID owner, String name, UUID assignment, Outcome outcome) {
-        return finish(owner, name, assignment, outcome, null);
+        return finish(owner, name, assignment, outcome, 0, null);
     }
     public synchronized boolean finish(UUID owner, String name, UUID assignment, Outcome outcome, String notice) {
+        return finish(owner, name, assignment, outcome, 0, notice);
+    }
+    public synchronized boolean finish(UUID owner, String name, UUID assignment, Outcome outcome, int bonusPoints) {
+        return finish(owner, name, assignment, outcome, bonusPoints, null);
+    }
+    public synchronized boolean finish(UUID owner, String name, UUID assignment, Outcome outcome, int bonusPoints, String notice) {
         if (outcome == Outcome.NONE) {
             throw new IllegalArgumentException("A delivery must have a final outcome");
         }
@@ -338,7 +430,9 @@ public final class DeliveryStore {
         if (p.active == null || !p.active.identity.assignmentId().equals(assignment)) {
             return false;
         }
-        long score = outcome == Outcome.COMPLETED && !p.active.testMode ? Math.addExact(p.score, p.active.option.points()) : p.score;
+        int finalBonus = Math.max(p.active.bonusPoints(), bonusPoints);
+        long earned = Math.addExact((long) p.active.option.points(), (long) finalBonus);
+        long score = outcome == Outcome.COMPLETED && !p.active.testMode ? Math.addExact(p.score, earned) : p.score;
         Profile ended = new Profile(owner, name, p.talked, outcome, score, null, assignment, notice);
         if (outcome == Outcome.ABANDONED) {
             remember(owner, ended);
@@ -389,7 +483,7 @@ public final class DeliveryStore {
             hint = hint.substring(1, hint.length() - 1).strip();
         }
         Destination updated = new Destination(recipient.id, recipient.name, recipient.world,
-            recipient.x, recipient.y, recipient.z, hint, recipient.entityId, recipient.worldId, recipient.disabled, recipient.celebrationEmote);
+            recipient.x, recipient.y, recipient.z, hint, recipient.entityId, recipient.worldId, recipient.disabled, recipient.celebrationEmote, recipient.bonusPoints);
         register(updated);
         return updated;
     }
@@ -400,7 +494,7 @@ public final class DeliveryStore {
             throw new IllegalStateException("No recipient is registered with ID " + id + ".");
         }
         Destination updated = new Destination(recipient.id, recipient.name, recipient.world, recipient.x, recipient.y, recipient.z,
-            recipient.hint, recipient.entityId, recipient.worldId, recipient.disabled, emote);
+            recipient.hint, recipient.entityId, recipient.worldId, recipient.disabled, emote, recipient.bonusPoints);
         register(updated);
         return updated;
     }
@@ -448,7 +542,7 @@ public final class DeliveryStore {
             recipients.remove(id);
         } else {
             recipients.put(id, new Destination(old.id, old.name, old.world, old.x, old.y, old.z,
-                old.hint, old.entityId, old.worldId, true, old.celebrationEmote));
+                old.hint, old.entityId, old.worldId, true, old.celebrationEmote, old.bonusPoints));
         }
         List<Profile> affected = assignmentsFor(id);
         // Keep the NPC change and the visible game state unchanged if its save fails.

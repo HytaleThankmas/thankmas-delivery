@@ -14,6 +14,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
@@ -115,7 +116,15 @@ public class ActiveDeliveryPage extends InteractiveCustomUIPage<ActiveDeliveryPa
         }
 
         commandBuilder.set("#ChosenGiftSlotWrapper #ParcelTitle.Text", parcelTitle);
+        int bonusPoints = (run != null && !run.testMode()) ? run.bonusPoints() : 0;
         commandBuilder.set("#ChosenGiftSlotWrapper #PointsTitle.Text", "Points: " + points);
+        if (bonusPoints > 0) {
+            commandBuilder.set("#ChosenGiftSlotWrapper #BonusPointsTitle.Text", " +" + bonusPoints);
+            commandBuilder.set("#ChosenGiftSlotWrapper #BonusPointsTitle.Visible", true);
+        } else {
+            commandBuilder.set("#ChosenGiftSlotWrapper #BonusPointsTitle.Text", "");
+            commandBuilder.set("#ChosenGiftSlotWrapper #BonusPointsTitle.Visible", false);
+        }
         commandBuilder.set("#ChosenGiftSlotWrapper #ParcelImage.ItemId", DeliveryService.PRESENT_BLOCK_ID);
         commandBuilder.set("#ChosenGiftSlotWrapper #PositiveText.Text", positiveText);
         commandBuilder.set("#ChosenGiftSlotWrapper #NeutralText.Text", neutralText);

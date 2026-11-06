@@ -36,6 +36,7 @@
     "TextureComputedColor": "#537721"
   },
   "CarryInteractions": {
+    "Primary": "Parcel_Inspect",
     "Use": "Parcel_Delivery_NPC",
     "Secondary": "Parcel_Dash",
     "Ability2": "Parcel_Throw"

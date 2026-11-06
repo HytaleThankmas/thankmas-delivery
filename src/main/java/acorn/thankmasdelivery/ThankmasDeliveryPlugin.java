@@ -6,6 +6,7 @@ import acorn.thankmasdelivery.component.DeliveryAssignmentState;
 import acorn.thankmasdelivery.component.DeliveryMovementState;
 import acorn.thankmasdelivery.component.DeliveryNpc;
 import acorn.thankmasdelivery.component.DeliveryOwnership;
+import acorn.thankmasdelivery.component.DeliveryPointsComponent;
 import acorn.thankmasdelivery.component.ThrownPresent;
 import acorn.thankmasdelivery.effect.DeliveryEffectLifecycleSystem;
 import acorn.thankmasdelivery.interaction.PickupPresentInteraction;
@@ -50,10 +51,20 @@ import javax.annotation.Nonnull;
 public class ThankmasDeliveryPlugin extends JavaPlugin {
 
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
+    private static ThankmasDeliveryPlugin instance;
     private DeliveryService deliveryService;
 
     public ThankmasDeliveryPlugin(@Nonnull JavaPluginInit init) {
         super(init);
+        instance = this;
+    }
+
+    public static ThankmasDeliveryPlugin get() {
+        return instance;
+    }
+
+    public DeliveryService deliveryService() {
+        return deliveryService;
     }
 
     @Override
@@ -72,8 +83,12 @@ public class ThankmasDeliveryPlugin extends JavaPlugin {
             .registerComponent(DeliveryOwnership.class, DeliveryPersistenceIds.OWNERSHIP_COMPONENT, DeliveryOwnership.CODEC);
         ComponentType<EntityStore, DeliveryNpc> npcType = getEntityStoreRegistry()
             .registerComponent(DeliveryNpc.class, DeliveryPersistenceIds.NPC_COMPONENT, DeliveryNpc.CODEC);
+        DeliveryNpc.setComponentType(npcType);
+        ComponentType<EntityStore, DeliveryPointsComponent> pointsType = getEntityStoreRegistry()
+            .registerComponent(DeliveryPointsComponent.class, DeliveryPersistenceIds.POINTS_COMPONENT, DeliveryPointsComponent.CODEC);
+        DeliveryPointsComponent.setComponentType(pointsType);
         DeliveryStore deliveries = new DeliveryStore(getDataDirectory().resolveSibling(DeliveryPersistenceIds.DATA_DIRECTORY).resolve("deliveries.json"));
-        deliveryService = new DeliveryService(assignmentType, thrownPresentType, ownershipType, npcType, deliveries);
+        deliveryService = new DeliveryService(assignmentType, thrownPresentType, ownershipType, npcType, pointsType, deliveries);
         getCodecRegistry(Interaction.CODEC).register("thankmasDeliveryNpcUse",
             acorn.thankmasdelivery.interaction.DeliveryNpcInteraction.class,
             acorn.thankmasdelivery.interaction.DeliveryNpcInteraction.codec(deliveryService));
@@ -84,11 +99,13 @@ public class ThankmasDeliveryPlugin extends JavaPlugin {
             ThrowPresentInteraction.codec(deliveryService, thrownPresentType));
         getCodecRegistry(Interaction.CODEC).register("thankmasDeliveryPickup", PickupPresentInteraction.class,
             PickupPresentInteraction.codec(deliveryService));
+        getCodecRegistry(Interaction.CODEC).register("thankmasDeliveryInspect",
+            acorn.thankmasdelivery.interaction.InspectParcelInteraction.class,
+            acorn.thankmasdelivery.interaction.InspectParcelInteraction.codec(deliveryService));
 
-        getEntityStoreRegistry().registerSystem(new DeliveryPlayerInitSystem(movementStateType));
+        getEntityStoreRegistry().registerSystem(new DeliveryPlayerInitSystem(movementStateType, pointsType, deliveries));
         getEntityStoreRegistry().registerSystem(new DeliveryParcelRemovalSystem(deliveryService, thrownPresentType));
         getEntityStoreRegistry().registerSystem(new DeliveryNpcTrackingSystem(deliveryService, npcType));
-        getEntityStoreRegistry().registerSystem(new acorn.thankmasdelivery.system.npc.DeliveryNpcNameSystem(npcType));
         getEntityStoreRegistry().registerSystem(new DeliveryNpcRemovalSystem(deliveryService, npcType));
         // World transfers end the old delivery, even if the player remains connected.
         getEventRegistry().registerGlobal(AddPlayerToWorldEvent.class, event -> {
@@ -112,6 +129,7 @@ public class ThankmasDeliveryPlugin extends JavaPlugin {
         getEntityStoreRegistry().registerSystem(new DeliveryRecipientPromptSystem(deliveryService));
         getEntityStoreRegistry().registerSystem(new DeliveryMovementSystem(assignmentType, movementStateType));
         getCommandRegistry().registerCommand(new DeliveryCommand(deliveryService));
+        getCommandRegistry().registerCommand(new DeliveryCommand.PointsCommand(deliveryService));
         // End the delivery before Hytale drops the disconnecting player's carried block.
         getEventRegistry().register(EventPriority.FIRST, PlayerDisconnectEvent.class,
             event -> deliveryService.disconnect(event.getPlayerRef()));
