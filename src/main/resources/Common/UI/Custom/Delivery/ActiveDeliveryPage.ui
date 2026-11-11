@@ -51,7 +51,7 @@ Group #ActiveDeliveryContainer {
               AssetImage #RecipientImage {
                 Anchor: (Width: 130, Height: 130);
                 FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
-                AssetPath: "Icons/ModelsGenerated/Armadillo.png";
+                AssetPath: "UI/Custom/Pages/Memories/MissingIcon.png";
               }
             }
 

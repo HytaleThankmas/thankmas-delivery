@@ -1,10 +1,13 @@
 package acorn.thankmasdelivery.npc;
 
+import acorn.thankmasdelivery.component.DeliveryNpc;
 import acorn.thankmasdelivery.persistence.DeliveryStore;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.modules.entity.component.DisplayNameComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
+import com.hypixel.hytale.server.core.modules.entity.player.PlayerSkinComponent;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -17,15 +20,17 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-
 public final class DeliveryNpcAppearanceHelper {
 
-    public static final String NPC_MEMORIES_IMAGE_DIR = "Icons/ModelsGenerated/";
+    public static final String PLAYER_RESOURCE_DIR = "Common/UI/Custom/Delivery/ModelsGenerated/";
+    public static final String PLAYER_ICON_DIR = "UI/Custom/Delivery/ModelsGenerated/";
+    public static final String NPC_ICON_DIR = "Icons/ModelsGenerated/";
     public static final String DEFAULT_FALLBACK_NPC = "Kweebec_Sapling";
-
+    public static final String DEFAULT_FALLBACK_NPC_PATH = NPC_ICON_DIR + DEFAULT_FALLBACK_NPC + ".png";
 
     private static final ConcurrentMap<UUID, String> UUID_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> ID_CACHE = new ConcurrentHashMap<>();
+
     private DeliveryNpcAppearanceHelper() {
     }
 
@@ -35,15 +40,15 @@ public final class DeliveryNpcAppearanceHelper {
         ID_CACHE.clear();
     }
 
-    public static void cacheAppearance(@Nullable String key, @Nullable String appearance) {
-        if (key != null && !key.isBlank() && appearance != null && !appearance.isBlank()) {
-            ID_CACHE.put(key, appearance);
+    public static void cacheAppearance(@Nullable String key, @Nullable String assetPath) {
+        if (key != null && !key.isBlank() && assetPath != null && !assetPath.isBlank()) {
+            ID_CACHE.put(key, assetPath);
         }
     }
 
-    public static void cacheAppearance(@Nullable UUID uuid, @Nullable String appearance) {
-        if (uuid != null && appearance != null && !appearance.isBlank()) {
-            UUID_CACHE.put(uuid, appearance);
+    public static void cacheAppearance(@Nullable UUID uuid, @Nullable String assetPath) {
+        if (uuid != null && assetPath != null && !assetPath.isBlank()) {
+            UUID_CACHE.put(uuid, assetPath);
         }
     }
 
@@ -55,22 +60,45 @@ public final class DeliveryNpcAppearanceHelper {
         }
 
         try {
+            boolean isPlayerNpc = store.getComponent(ref, PlayerSkinComponent.getComponentType()) != null;
+            if (!isPlayerNpc) {
+                ModelComponent modelComponent = store.getComponent(ref, ModelComponent.getComponentType());
+                if (modelComponent != null && modelComponent.getModel() != null) {
+                    isPlayerNpc = "Player".equalsIgnoreCase(modelComponent.getModel().getModelAssetId());
+                }
+            }
+
+            if (isPlayerNpc) {
+                DeliveryNpc marker = store.getComponent(ref, DeliveryNpc.getComponentType());
+                String name = marker != null ? marker.name() : null;
+                if (name == null || name.isBlank()) {
+                    DisplayNameComponent displayName = store.getComponent(ref, DisplayNameComponent.getComponentType());
+                    if (displayName != null && displayName.getDisplayName() != null) {
+                        name = displayName.getDisplayName().getRawText();
+                    }
+                }
+                if (name != null && !name.isBlank()) {
+                    return PLAYER_ICON_DIR + sanitizeName(name) + ".png";
+                }
+            }
+
+            // Non-Player NPC -> Icons/ModelsGenerated/<Appearance>.png
             NPCEntity npc = store.getComponent(ref, NPCEntity.getComponentType());
             if (npc != null) {
                 Role role = npc.getRole();
                 if (role != null) {
                     String memoriesOverride = role.getMemoriesNameOverride();
                     if (memoriesOverride != null && !memoriesOverride.isBlank()) {
-                        return memoriesOverride;
+                        return NPC_ICON_DIR + sanitizeName(memoriesOverride) + ".png";
                     }
                     String appearance = role.getAppearanceName();
                     if (appearance != null && !appearance.isBlank()) {
-                        return appearance;
+                        return NPC_ICON_DIR + sanitizeName(appearance) + ".png";
                     }
                 }
                 String roleName = npc.getRoleName();
                 if (roleName != null && !roleName.isBlank()) {
-                    return roleName;
+                    return NPC_ICON_DIR + sanitizeName(roleName) + ".png";
                 }
             }
 
@@ -78,7 +106,7 @@ public final class DeliveryNpcAppearanceHelper {
             if (modelComponent != null && modelComponent.getModel() != null) {
                 String modelAssetId = modelComponent.getModel().getModelAssetId();
                 if (modelAssetId != null && !modelAssetId.isBlank()) {
-                    return modelAssetId;
+                    return NPC_ICON_DIR + sanitizeName(modelAssetId) + ".png";
                 }
             }
         } catch (Exception ignored) {
@@ -118,11 +146,8 @@ public final class DeliveryNpcAppearanceHelper {
         }
 
         if (resolved == null || resolved.isBlank()) {
-            if (destination.name() != null && !destination.name().isBlank()) {
-                resolved = destination.name();
-            } else {
-                resolved = destId;
-            }
+            String name = destination.name() != null && !destination.name().isBlank() ? destination.name() : destId;
+            resolved = resolveNpcAssetPath(name);
         }
 
         if (resolved != null && !resolved.isBlank()) {
@@ -133,23 +158,33 @@ public final class DeliveryNpcAppearanceHelper {
         return resolved;
     }
 
-
     @Nonnull
     public static String resolveNpcAssetPath(@Nullable DeliveryStore.Destination destination) {
-        String appearance = getAppearance(destination);
-        return resolveNpcAssetPath(appearance);
+        String path = getAppearance(destination);
+        return (path != null && !path.isBlank()) ? path : DEFAULT_FALLBACK_NPC_PATH;
     }
 
     @Nonnull
     public static String resolveNpcAssetPath(@Nullable String appearanceOrName) {
-        String name = sanitizeName(appearanceOrName);
-        if (name == null || name.isBlank()) {
-            name = DEFAULT_FALLBACK_NPC;
+        if (appearanceOrName == null || appearanceOrName.isBlank()) {
+            return DEFAULT_FALLBACK_NPC_PATH;
         }
 
-        return NPC_MEMORIES_IMAGE_DIR + name + ".png";
-    }
+        if (appearanceOrName.startsWith("UI/") || appearanceOrName.startsWith("Icons/")) {
+            return appearanceOrName;
+        }
 
+        String clean = sanitizeName(appearanceOrName);
+        if (clean == null || clean.isBlank()) {
+            return DEFAULT_FALLBACK_NPC_PATH;
+        }
+
+        if (DeliveryNpcAppearanceHelper.class.getResource("/" + PLAYER_RESOURCE_DIR + clean + ".png") != null) {
+            return PLAYER_ICON_DIR + clean + ".png";
+        }
+
+        return NPC_ICON_DIR + clean + ".png";
+    }
 
     @Nullable
     private static String sanitizeName(@Nullable String input) {
